@@ -1,70 +1,108 @@
-import axios from 'axios';
+import axios from "axios";
+import { useEffect, useState } from "react";
+import { AuthTestResponse, ChatPostMessageResponse } from "@slack/web-api";
 
 function App() {
-  const checkIn = async () => {
+  const [inputSlackUAT, setInputSlackUAT] = useState<string>("");
 
-    axios({
-      method: 'post',
-      url: 'https://slack.com/api/chat.postMessage',
-      data: `text=おはようございます。&channel=D048WV2MDUK&token=${process.env.REACT_APP_OAUTH_USER_ACCESS_TOKEN}`,
-    })
-      .then((response: any) => {
-  
-        console.log('response', response);
-        alert('checkin success');
-  
-      })
-  
-      .catch((error: any) => {
-  
-        console.log('error', error);
-        alert('connection failed');
-  
-      });
-  }
+  // Loading Flags
+  const [isValidatingSlackUAT, setIsValidatingSlackUAT] =
+    useState<boolean>(false);
+  const [isCheckingIn, setIsCheckingIn] = useState<boolean>(false);
+  // const [isCheckingOut, setIsCheckingOut] = useState<boolean>(false);
 
-  const testConnection = () => {
+  // slack user access token
+  const [slackUAT, setSlackUAT] = useState<string | null>(null);
 
-    axios({
-  
-      method: 'post',
-  
-      url: 'https://slack.com/api/auth.test',
+  useEffect(() => {
+    const initialize = async () => {
+      const localStorageSlackUAT = localStorage.getItem("slackUAT");
+      const isValid = await validate(localStorageSlackUAT || "");
+      if (isValid) setSlackUAT(localStorageSlackUAT);
+    };
+    initialize();
+  }, []);
 
-      data: `token=${process.env.REACT_APP_OAUTH_USER_ACCESS_TOKEN}`
-  
-    })
-  
-      .then((response: any) => {
-        if (!response.data?.ok) {
-          console.log(`client_id=${process.env.REACT_APP_CLIENT_ID}&client_secret=${process.env.REACT_APP_CLIENT_SECRET}&token=${process.env.REACT_APP_OAUTH_USER_ACCESS_TOKEN}`)
-          axios({
-            method: 'get',
-            url: 'https://slack.com/api/oauth.v2.exchange',
-            data: `client_id="${process.env.REACT_APP_CLIENT_ID}"&client_secret="${process.env.REACT_APP_CLIENT_SECRET}"&token="${process.env.REACT_APP_OAUTH_USER_ACCESS_TOKEN}"`
-          }).then((response: any) => {
-            console.log('token expired. new token info:', response.data)
-          }).catch((e) => {
-            console.error(e);
-            console.log('token expired. can\'t get new token info')
-          })
-        } else {
-          alert('connection success');
-        }
-  
-      })
-  
-      .catch((error: any) => {
-  
-        console.log('error', error);
-        alert('connection failed');
-  
-      });
-  
+  const validate = async (token: string): Promise<boolean> => {
+    try {
+      setIsValidatingSlackUAT(true);
+      const response: AuthTestResponse = (
+        await axios({
+          method: "post",
+          url: "https://slack.com/api/auth.test",
+          data: `token=${token}`,
+        })
+      ).data;
+
+      if (!response.ok) alert("Invalid or expired token!");
+
+      return response.ok;
+    } catch (e) {
+      console.error(e);
+      alert("Network related error. Check console.");
+      return false;
+    } finally {
+      setIsValidatingSlackUAT(false);
+    }
   };
 
-  return (
-    <><input type="button" value="Check In" onClick={() => checkIn()} /><input type="button" value="Test Connection" onClick={() => testConnection()} /></>
+  const checkIn = async () => {
+    try {
+      setIsCheckingIn(true);
+      const response: ChatPostMessageResponse = (
+        await axios({
+          method: "post",
+          url: "https://slack.com/api/chat.postMessage",
+          data: `text=おはようございます。&channel=D048WV2MDUK&token=${slackUAT}`,
+        })
+      ).data;
+
+      alert(`checkin ${response.ok ? "success" : "failed"}`);
+    } catch (e) {
+      console.error(e);
+      alert("Network related error. Check console.");
+    } finally {
+      setIsCheckingIn(false);
+    }
+  };
+
+  const saveToken = async () => {
+    const isValid = await validate(inputSlackUAT);
+
+    if (isValid) {
+      localStorage.setItem("token", inputSlackUAT);
+      setSlackUAT(inputSlackUAT);
+      setInputSlackUAT("");
+    }
+  };
+
+  return slackUAT ? (
+    <input
+      disabled={isCheckingIn}
+      type="button"
+      value={isCheckingIn ? "Checking in..." : "Check in"}
+      onClick={() => checkIn()}
+    />
+  ) : (
+    <div>
+      <input
+        disabled={isValidatingSlackUAT || inputSlackUAT.length < 1}
+        type="text"
+        placeholder={
+          isValidatingSlackUAT
+            ? "Validating Token..."
+            : "New Slack User Access Token"
+        }
+        value={inputSlackUAT}
+        onChange={(e) => setInputSlackUAT(e.target.value)}
+      />
+      <input
+        disabled={isValidatingSlackUAT}
+        type="button"
+        value="Save"
+        onClick={() => saveToken()}
+      />
+    </div>
   );
 }
 
