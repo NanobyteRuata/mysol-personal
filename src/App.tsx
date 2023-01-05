@@ -86,7 +86,7 @@ function App() {
   ) : (
     <div>
       <input
-        disabled={isValidatingSlackUAT || inputSlackUAT.length < 1}
+        disabled={isValidatingSlackUAT}
         type="text"
         placeholder={
           isValidatingSlackUAT
@@ -97,7 +97,7 @@ function App() {
         onChange={(e) => setInputSlackUAT(e.target.value)}
       />
       <input
-        disabled={isValidatingSlackUAT}
+        disabled={isValidatingSlackUAT || inputSlackUAT.length < 1}
         type="button"
         value="Save"
         onClick={() => saveToken()}
