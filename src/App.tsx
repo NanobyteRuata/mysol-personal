@@ -9,7 +9,7 @@ function App() {
   const [isValidatingSlackUAT, setIsValidatingSlackUAT] =
     useState<boolean>(false);
   const [isCheckingIn, setIsCheckingIn] = useState<boolean>(false);
-  // const [isCheckingOut, setIsCheckingOut] = useState<boolean>(false);
+  const [isCheckingOut, setIsCheckingOut] = useState<boolean>(false);
 
   // slack user access token
   const [slackUAT, setSlackUAT] = useState<string | null>(null);
@@ -47,22 +47,40 @@ function App() {
   };
 
   const checkIn = async () => {
-    try {
-      setIsCheckingIn(true);
-      const response: ChatPostMessageResponse = (
-        await axios({
-          method: "post",
-          url: "https://slack.com/api/chat.postMessage",
-          data: `text=おはようございます。&channel=D048WV2MDUK&token=${slackUAT}`,
-        })
-      ).data;
+    setIsCheckingIn(true);
+    const success = await sendMessageToSlack(
+      "おはようございます。",
+      "D048WV2MDUK"
+    );
+    alert(`Check in ${success ? "success" : "failed"}`);
+    setIsCheckingIn(false);
+  };
 
-      alert(`checkin ${response.ok ? "success" : "failed"}`);
+  const checkOut = async () => {
+    setIsCheckingOut(true);
+    const success = await sendMessageToSlack("お疲れ様です。", "D048WV2MDUK");
+    alert(`Check out ${success ? "success" : "failed"}`);
+    setIsCheckingOut(false);
+  };
+
+  const sendMessageToSlack = async (
+    text: string,
+    channel: string
+  ): Promise<boolean> => {
+    try {
+      return (
+        (
+          await axios({
+            method: "post",
+            url: "https://slack.com/api/chat.postMessage",
+            data: `text=${text}&channel=${channel}&token=${slackUAT}`,
+          })
+        ).data as ChatPostMessageResponse
+      ).ok;
     } catch (e) {
       console.error(e);
       alert("Network related error. Check console.");
-    } finally {
-      setIsCheckingIn(false);
+      return false;
     }
   };
 
@@ -70,19 +88,27 @@ function App() {
     const isValid = await validate(inputSlackUAT);
 
     if (isValid) {
-      localStorage.setItem("token", inputSlackUAT);
+      localStorage.setItem("slackUAT", inputSlackUAT);
       setSlackUAT(inputSlackUAT);
       setInputSlackUAT("");
     }
   };
 
   return slackUAT ? (
-    <input
-      disabled={isCheckingIn}
-      type="button"
-      value={isCheckingIn ? "Checking in..." : "Check in"}
-      onClick={() => checkIn()}
-    />
+    <div>
+      <input
+        disabled={isCheckingIn}
+        type="button"
+        value={isCheckingIn ? "Checking in..." : "Check in"}
+        onClick={() => checkIn()}
+      />
+      <input
+        disabled={isCheckingOut}
+        type="button"
+        value={isCheckingOut ? "Checking out..." : "Check out"}
+        onClick={() => checkOut()}
+      />
+    </div>
   ) : (
     <div>
       <input
